@@ -100,6 +100,27 @@ _AI_NUMERICSERV = getattr(socket, "AI_NUMERICSERV", 0)
 _portNameType = (str, unicode)
 
 
+def _getrealname(skt):
+    """
+    Return a 2-tuple of socket IP and port. With IPv6 addresses, this
+    preserves the interface portion.
+    """
+    sockname = skt()
+    if len(sockname) == 4:
+        # IPv6
+        host = socket.getnameinfo(sockname, socket.NI_NUMERICHOST)[0]
+        return tuple([host] + list(sockname[1:]))
+    else:
+        return sockname[:2]
+
+def _getpeername(skt):
+    return _getrealname(skt.getpeername)
+
+def _getsockname(skt):
+    return _getrealname(skt.getsockname)
+
+
+
 
 class _SocketCloser(object):
     """
@@ -429,7 +450,11 @@ class _BaseBaseClient(object):
             and the 'host' portion will always be an IP address, not a DNS
             name.
         """
-        self.realAddress = address
+        if len(address) == 4:
+            hostname = socket.getnameinfo(address, socket.NI_NUMERICHOST)[0]
+            self.realAddress = tuple([hostname] + list(address[1:]))
+        else:
+            self.realAddress = address
         self.doConnect()
 
 
@@ -699,7 +724,7 @@ class _BaseTCPClient(object):
         if whenDone and bindAddress is not None:
             try:
                 if abstract.isIPv6Address(bindAddress[0]):
-                    bindinfo = _resolveIPv6(*bindAddress)
+                    bindinfo = _resolveIPv6(*bindAddress[:2])
                 else:
                     bindinfo = bindAddress
                 skt.bind(bindinfo)
@@ -715,7 +740,7 @@ class _BaseTCPClient(object):
 
         This indicates the address from which I am connecting.
         """
-        return self._addressType('TCP', *self.socket.getsockname()[:2])
+        return self._addressType('TCP', *_getsockname(self.socket))
 
 
     def getPeer(self):
@@ -724,9 +749,7 @@ class _BaseTCPClient(object):
 
         This indicates the address that I am connected to.
         """
-        # an ipv6 realAddress has more than two elements, but the IPv6Address
-        # constructor still only takes two.
-        return self._addressType('TCP', *self.realAddress[:2])
+        return self._addressType('TCP', *self.realAddress)
 
 
     def __repr__(self):
@@ -820,8 +843,8 @@ class Server(_TLSServerMixin, Connection):
         if addressFamily == socket.AF_INET6:
             addressType = address.IPv6Address
         skt = socket.fromfd(fileDescriptor, addressFamily, socket.SOCK_STREAM)
-        addr = skt.getpeername()
-        protocolAddr = addressType('TCP', addr[0], addr[1])
+        addr = _getpeername(skt)
+        protocolAddr = addressType('TCP', *addr)
         localPort = skt.getsockname()[1]
 
         protocol = factory.buildProtocol(protocolAddr)
@@ -842,8 +865,8 @@ class Server(_TLSServerMixin, Connection):
 
         This indicates the server's address.
         """
-        host, port = self.socket.getsockname()[:2]
-        return self._addressType('TCP', host, port)
+        addr = _getsockname(self.socket)
+        return self._addressType('TCP', *addr)
 
 
     def getPeer(self):
@@ -852,7 +875,7 @@ class Server(_TLSServerMixin, Connection):
 
         This indicates the client's address.
         """
-        return self._addressType('TCP', *self.client[:2])
+        return self._addressType('TCP', *self.client)
 
 
 
@@ -1284,7 +1307,7 @@ class Port(base.BasePort, _SocketCloser):
         @return: A new instance of C{cls} wrapping the socket given by C{fd}.
         """
         port = socket.fromfd(fd, addressFamily, cls.socketType)
-        interface = port.getsockname()[0]
+        interface = _getsockname(port)[0]
         self = cls(None, factory, None, interface, reactor)
         self._preexistingSocket = port
         return self
@@ -1347,11 +1370,8 @@ class Port(base.BasePort, _SocketCloser):
 
         self.startReading()
 
-
     def _buildAddr(self, address):
-        host, port = address[:2]
-        return self._addressType('TCP', host, port)
-
+        return self._addressType('TCP', *address)
 
     def doRead(self):
         """Called when my socket is ready for reading.
@@ -1374,10 +1394,16 @@ class Port(base.BasePort, _SocketCloser):
                                   range(numAccepts),
                                   self.socket,
                                   _reservedFD)
+
                 for accepted, (skt, addr) in enumerate(clients, 1):
                     fdesc._setCloseOnExec(skt.fileno())
-                    protocol = self.factory.buildProtocol(
-                        self._buildAddr(addr))
+
+                    if len(addr) == 4:
+                        # IPv6
+                        host = socket.getnameinfo(addr, socket.NI_NUMERICHOST)
+                        addr = tuple([host[0]] + list(addr[1:]))
+
+                    protocol = self.factory.buildProtocol(self._buildAddr(addr))
                     if protocol is None:
                         skt.close()
                         continue
@@ -1461,8 +1487,8 @@ class Port(base.BasePort, _SocketCloser):
         Return an L{IPv4Address} or L{IPv6Address} indicating the listening
         address of this port.
         """
-        host, port = self.socket.getsockname()[:2]
-        return self._addressType('TCP', host, port)
+        addr = _getsockname(self.socket)
+        return self._addressType('TCP', *addr)
 
 
 
