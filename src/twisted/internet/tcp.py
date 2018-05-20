@@ -109,7 +109,7 @@ def _getrealname(skt):
     if len(sockname) == 4:
         # IPv6
         host = socket.getnameinfo(sockname, socket.NI_NUMERICHOST)[0]
-        return tuple([host] + list(sockname[1:]))
+        return (host, sockname[1])
     else:
         return sockname[:2]
 
@@ -451,8 +451,9 @@ class _BaseBaseClient(object):
             name.
         """
         if len(address) == 4:
+            # IPv6, make sure we have the interface portion
             hostname = socket.getnameinfo(address, socket.NI_NUMERICHOST)[0]
-            self.realAddress = tuple([hostname] + list(address[1:]))
+            self.realAddress = (hostname, address[1])
         else:
             self.realAddress = address
         self.doConnect()
@@ -724,7 +725,7 @@ class _BaseTCPClient(object):
         if whenDone and bindAddress is not None:
             try:
                 if abstract.isIPv6Address(bindAddress[0]):
-                    bindinfo = _resolveIPv6(*bindAddress[:2])
+                    bindinfo = _resolveIPv6(*bindAddress)
                 else:
                     bindinfo = bindAddress
                 skt.bind(bindinfo)
@@ -1399,9 +1400,9 @@ class Port(base.BasePort, _SocketCloser):
                     fdesc._setCloseOnExec(skt.fileno())
 
                     if len(addr) == 4:
-                        # IPv6
+                        # IPv6, make sure we preserve the interface portion
                         host = socket.getnameinfo(addr, socket.NI_NUMERICHOST)
-                        addr = tuple([host[0]] + list(addr[1:]))
+                        addr = (host[0], addr[1])
 
                     protocol = self.factory.buildProtocol(self._buildAddr(addr))
                     if protocol is None:

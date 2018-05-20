@@ -653,7 +653,7 @@ class TCPClientTestsBase(ReactorBuilder, ConnectionTestsMixin,
         def connectMe():
             while True:
                 port = findFreePort(self.interface, self.family)
-                bindAddress = tuple([self.interface] + list(port[1:]))
+                bindAddress = (self.interface, port[1])
                 log.msg("Connect attempt with bindAddress {}".format(
                     bindAddress
                 ))
