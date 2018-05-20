@@ -12,8 +12,9 @@ from zope.interface import implementer, classImplements
 from twisted.internet import interfaces, error, address, main, defer
 from twisted.internet.protocol import Protocol
 from twisted.internet.abstract import _LogOwner, isIPv6Address
-from twisted.internet.tcp import _SocketCloser, Connector as TCPConnector
-from twisted.internet.tcp import _AbortingMixin, _BaseBaseClient, _BaseTCPClient
+from twisted.internet.tcp import (
+    _SocketCloser, Connector as TCPConnector, _AbortingMixin, _BaseBaseClient,
+    _BaseTCPClient, _resolveIPv6, _getsockname)
 from twisted.python import log, failure, reflect
 from twisted.python.compat import _PY3, nativeString
 
@@ -449,7 +450,7 @@ class Port(_SocketCloser, _LogOwner):
                                             self.socketType)
             # TODO: resolve self.interface if necessary
             if self.addressFamily == socket.AF_INET6:
-                addr = socket.getaddrinfo(self.interface, self.port)[0][4]
+                addr = _resolveIPv6(self.interface, self.port)
             else:
                 addr = (self.interface, self.port)
             skt.bind(addr)
@@ -540,12 +541,11 @@ class Port(_SocketCloser, _LogOwner):
 
     def getHost(self):
         """
-        Returns an IPv4Address.
+        Returns an IPv4Address or IPv6Address.
 
         This indicates the server's address.
         """
-        host, port = self.socket.getsockname()[:2]
-        return self._addressType('TCP', host, port)
+        return self._addressType('TCP', *_getsockname(self.socket))
 
 
     def cbAccept(self, rc, data, evt):
