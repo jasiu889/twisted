@@ -62,18 +62,13 @@ class IPv6Address(object):
 
     @ivar scopeID: the IPv6 scope identifier - roughly analagous to what
         interface traffic destined for this address must be transmitted over.
-    @type scopeID: L{int}
+    @type scopeID: L{int} or L{str}
     """
     type = attr.ib(validator=attr.validators.in_(["TCP", "UDP"]))
     host = attr.ib()
     port = attr.ib()
     flowInfo = attr.ib(default=0)
     scopeID = attr.ib(default=0)
-
-    def __attrs_post_init__(self):
-        # If we are not given the scopeID, see if it exists in the host
-        if self.scopeID == 0 and "%" in self.host:
-            self.scopeID = int(self.host.split("%")[1])
 
 
 
