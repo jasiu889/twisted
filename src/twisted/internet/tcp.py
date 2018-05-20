@@ -102,14 +102,15 @@ _portNameType = (str, unicode)
 
 def _getrealname(skt):
     """
-    Return a 2-tuple of socket IP and port. With IPv6 addresses, this
+    Return a 2-tuple of socket IP and port for IPv4 and a 4-tuple of
+    socket IP, port, flowInfo, and scopeID. With IPv6 addresses, this
     preserves the interface portion.
     """
     sockname = skt()
     if len(sockname) == 4:
         # IPv6
         host = socket.getnameinfo(sockname, socket.NI_NUMERICHOST)[0]
-        return (host, sockname[1])
+        return tuple([host] + list(sockname[1:]))
     else:
         return sockname[:2]
 
@@ -453,7 +454,7 @@ class _BaseBaseClient(object):
         if len(address) == 4:
             # IPv6, make sure we have the interface portion
             hostname = socket.getnameinfo(address, socket.NI_NUMERICHOST)[0]
-            self.realAddress = (hostname, address[1])
+            self.realAddress = tuple([hostname] + list(address[1:]))
         else:
             self.realAddress = address
         self.doConnect()
@@ -1375,7 +1376,8 @@ class Port(base.BasePort, _SocketCloser):
         return self._addressType('TCP', *address)
 
     def doRead(self):
-        """Called when my socket is ready for reading.
+        """
+        Called when my socket is ready for reading.
 
         This accepts a connection and calls self.protocol() to handle the
         wire-level protocol.
@@ -1400,9 +1402,9 @@ class Port(base.BasePort, _SocketCloser):
                     fdesc._setCloseOnExec(skt.fileno())
 
                     if len(addr) == 4:
-                        # IPv6, make sure we preserve the interface portion
+                        # IPv6, make sure we preserve the interface
                         host = socket.getnameinfo(addr, socket.NI_NUMERICHOST)
-                        addr = (host[0], addr[1])
+                        addr = tuple([host[0]] + list(addr[1:]))
 
                     protocol = self.factory.buildProtocol(self._buildAddr(addr))
                     if protocol is None:
