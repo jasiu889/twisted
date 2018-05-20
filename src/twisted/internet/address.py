@@ -70,6 +70,11 @@ class IPv6Address(object):
     flowInfo = attr.ib(default=0)
     scopeID = attr.ib(default=0)
 
+    def __attrs_post_init__(self):
+        # If we are not given the scopeID, see if it exists in the host
+        if self.scopeID == 0 and "%" in self.host:
+            self.scopeID = int(self.host.split("%")[1])
+
 
 
 @implementer(IAddress)
