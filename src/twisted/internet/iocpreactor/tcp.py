@@ -580,16 +580,24 @@ class Port(_SocketCloser, _LogOwner):
                 rAddr = (nativeString(rAddr[0]), rAddr[1])
             assert family == self.addressFamily
 
+            # Build a proper IPv6 address structure, if it exists
+            if "%" in lAddr[0]:
+                scope = int(lAddr[0].split("%")[1])
+                lAddr = (lAddr[0], lAddr[1], 0, scope)
+            if "%" in rAddr[0]:
+                scope = int(rAddr[0].split("%")[1])
+                rAddr = (rAddr[0], rAddr[1], 0, scope)
+
             protocol = self.factory.buildProtocol(
-                self._addressType('TCP', rAddr[0], rAddr[1]))
+                self._addressType('TCP', *rAddr))
             if protocol is None:
                 evt.newskt.close()
             else:
                 s = self.sessionno
                 self.sessionno = s+1
                 transport = Server(evt.newskt, protocol,
-                        self._addressType('TCP', rAddr[0], rAddr[1]),
-                        self._addressType('TCP', lAddr[0], lAddr[1]),
+                        self._addressType('TCP', *rAddr),
+                        self._addressType('TCP', *lAddr),
                         s, self.reactor)
                 protocol.makeConnection(transport)
             return True

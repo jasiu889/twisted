@@ -1818,7 +1818,6 @@ class TCPPortTestsMixin(object):
         peerAddress = self._serverGetConnectionAddressTest(
             client, interface, 'getPeer')
 
-
         peer = client.getsockname()
         hostname = socket.getnameinfo(peer, socket.NI_NUMERICHOST)[0]
 
