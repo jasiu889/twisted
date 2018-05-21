@@ -100,26 +100,37 @@ _AI_NUMERICSERV = getattr(socket, "AI_NUMERICSERV", 0)
 _portNameType = (str, unicode)
 
 
-def _getrealname(skt):
+def _getrealname(addr):
     """
     Return a 2-tuple of socket IP and port for IPv4 and a 4-tuple of
-    socket IP, port, flowInfo, and scopeID. With IPv6 addresses, this
+    socket IP, port, flowInfo, and scopeID.  With IPv6 addresses, this
     preserves the interface portion.
+
+    @param addr: A 2-tuple for IPv4 information or a 4-tuple for IPv6
+        information.
     """
-    sockname = skt()
-    if len(sockname) == 4:
+    if len(addr) == 4:
         # IPv6
-        host = socket.getnameinfo(sockname, socket.NI_NUMERICHOST)[0]
-        return tuple([host] + list(sockname[1:]))
+        host = socket.getnameinfo(addr, socket.NI_NUMERICHOST)[0]
+        return tuple([host] + list(addr[1:]))
     else:
-        return sockname[:2]
+        return addr[:2]
+
+
 
 def _getpeername(skt):
-    return _getrealname(skt.getpeername)
+    """
+    See L{_getrealname}.
+    """
+    return _getrealname(skt.getpeername())
+
+
 
 def _getsockname(skt):
-    return _getrealname(skt.getsockname)
-
+    """
+    See L{_getrealname}.
+    """
+    return _getrealname(skt.getsockname())
 
 
 
