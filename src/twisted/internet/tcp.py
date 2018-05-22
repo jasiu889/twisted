@@ -1417,7 +1417,8 @@ class Port(base.BasePort, _SocketCloser):
                         host = socket.getnameinfo(addr, socket.NI_NUMERICHOST)
                         addr = tuple([host[0]] + list(addr[1:]))
 
-                    protocol = self.factory.buildProtocol(self._buildAddr(addr))
+                    protocol = self.factory.buildProtocol(
+                        self._buildAddr(addr))
                     if protocol is None:
                         skt.close()
                         continue
